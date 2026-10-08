@@ -4,6 +4,10 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useAuth } from '@workspace/replit-auth-web';
+import { UserSwitcher, STAFF_PROFILES } from '@/components/UserSwitcher';
+import { JobTicketModal } from '@/components/JobTicketModal';
+import { PrintCalculatorModal } from '@/components/PrintCalculatorModal';
+import { MessageCircle, Calculator } from 'lucide-react';
 import {
   useGetDashboard, useListActivity, useListClients, useCreateClient, useListTickets, useCreateTicket,
   useGetTicket, useAnalyzeTicket, useCreateArtworkVersion, useDecideTicketProduction,
@@ -54,7 +58,40 @@ function ProtectedShell() {
   const auth = useAuth();
   const [path] = useLocation();
   if (auth.isLoading) return <div className="min-h-[100dvh] p-8"><div className="skeleton" style={{width:190,height:28}}/><div className="skeleton" style={{width:'70%',height:140,marginTop:40}}/></div>;
-  if (!auth.isAuthenticated) return <div className="min-h-[100dvh] grid place-items-center p-6" style={{background:'hsl(var(--sidebar))',color:'#f3eee4'}}><div className="panel p-8 text-center max-w-md" style={{background:'hsl(var(--card))',color:'hsl(var(--foreground))'}}><div className="brand-mark mx-auto mb-5">GF</div><div className="eyebrow">GRÁFICA FLOW · OPERAÇÕES</div><h1 className="font-display text-3xl mt-3 mb-2">O trabalho flui daqui.</h1><p className="text-sm text-muted-foreground mb-6">Entre para acompanhar pedidos, aprovações e produção.</p><button className="btn btn-primary" onClick={auth.login} data-testid="button-login">Entrar na plataforma <ArrowRight size={15}/></button></div></div>;
+  if (!auth.isAuthenticated) return (
+    <div className="min-h-[100dvh] grid place-items-center p-6" style={{background:'hsl(var(--sidebar))',color:'#f3eee4'}}>
+      <div className="panel p-8 text-center max-w-2xl w-full" style={{background:'hsl(var(--card))',color:'hsl(var(--foreground))'}}>
+        <div className="brand-mark mx-auto mb-4">GF</div>
+        <div className="eyebrow">GRÁFICA FLOW · OPERAÇÕES</div>
+        <h1 className="font-display text-3xl mt-2 mb-1">Selecione o seu perfil de acesso</h1>
+        <p className="text-sm text-muted-foreground mb-6">Entre com uma das funções operacionais para acompanhar ou intervir no fluxo:</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6">
+          {STAFF_PROFILES.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => auth.login(p.id)}
+              className="flex items-start gap-3 p-3.5 rounded-xl border border-border/80 hover:border-primary/50 hover:bg-accent/40 transition-all cursor-pointer group text-left"
+            >
+              <span className={`w-9 h-9 rounded-full ${p.avatarBg} grid place-items-center text-sm shrink-0 shadow-xs mt-0.5 group-hover:scale-105 transition-transform`}>
+                {p.icon}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">{p.name}</span>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${p.badgeColor}`}>{p.roleLabel}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug line-clamp-2">{p.description}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+        <button className="btn btn-primary w-full" onClick={() => auth.login('usr_admin')} data-testid="button-login">
+          Entrar como Gestor de Produção (Administrador) <ArrowRight size={15}/>
+        </button>
+      </div>
+    </div>
+  );
   const nav = [
     {href:'/dashboard',label:'Visão geral',icon:LayoutDashboard},
     {href:'/pedidos',label:'Pedidos',icon:FileText},
@@ -68,7 +105,7 @@ function ProtectedShell() {
       <div><div className="nav-label">Operação</div>{nav.map(n=><Link key={n.href} href={n.href} className={`nav-link ${active(n.href)?'active':''}`} data-testid={`link-nav-${n.label.toLowerCase().replaceAll(' ','-')}`}><n.icon size={16}/><span className="nav-text">{n.label}</span></Link>)}</div>
       <div className="sidebar-footer mt-auto px-3 text-[11px] text-slate-400"><div className="border-t border-slate-600 pt-4 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-400"/><span>Operação sincronizada</span></div></div>
     </aside>
-    <div className="main"><header className="topbar"><div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="w-2 h-2 rounded-full" style={{background:'hsl(var(--primary))'}}/> Turno de produção <span className="mx-1">/</span><span className="text-foreground">{nav.find(n=>active(n.href))?.label || 'Pedido'}</span></div><div className="flex items-center gap-4"><span className="text-xs text-muted-foreground hidden sm:block">{new Intl.DateTimeFormat('pt-AO',{timeZone:'Africa/Luanda',weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date())} · Luanda</span><span className="flex items-center gap-2 text-xs font-semibold"><span className="w-7 h-7 rounded-full bg-secondary text-secondary-foreground grid place-items-center"><UserRound size={14}/></span>{auth.user?.firstName || auth.user?.email?.split('@')[0] || 'Equipa'}</span><button className="btn btn-sm" aria-label="Terminar sessão" onClick={auth.logout}><LogOut size={14}/><span className="hidden sm:inline">Sair</span></button></div></header>
+    <div className="main"><header className="topbar"><div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="w-2 h-2 rounded-full" style={{background:'hsl(var(--primary))'}}/> Turno de produção <span className="mx-1">/</span><span className="text-foreground">{nav.find(n=>active(n.href))?.label || 'Pedido'}</span></div><div className="flex items-center gap-4"><span className="text-xs text-muted-foreground hidden md:block">{new Intl.DateTimeFormat('pt-AO',{timeZone:'Africa/Luanda',weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date())} · Luanda</span><UserSwitcher/></div></header>
       <Switch><Route path="/" component={DashboardPage}/><Route path="/dashboard" component={DashboardPage}/><Route path="/pedidos/novo" component={NewTicketPage}/><Route path="/pedidos/:ticketId" component={TicketPage}/><Route path="/pedidos" component={TicketsPage}/><Route path="/ordens/:orderId" component={OrderPage}/><Route path="/ordens" component={OrdersPage}/><Route path="/clientes" component={ClientsPage}/><Route path="/equipa" component={TeamPage}/><Route component={NotFound}/></Switch>
     </div>
     <nav className="mobile-nav">{nav.map(n=><Link key={n.href} href={n.href} className={active(n.href)?'active':''}><n.icon/><span>{n.label.split(' ')[0]}</span></Link>)}</nav>
@@ -122,7 +159,7 @@ function TicketsPage() {
 function NewTicketPage() {
  const role=useCurrentRole(); const clients=useListClients(); const create=useCreateTicket(); const reqUpload=useRequestUploadUrl(); const qc=useQueryClient(); const [,go]=useLocation();
  const [form,setForm]=useState({clientId:'',product:'',description:'',quantity:'1',format:'',material:'',colors:'',finishing:'',dueDate:'',priority:'NORMAL',amount:'',responsible:'',observations:''});
- const [file,setFile]=useState<File|null>(null); const [error,setError]=useState('');
+ const [file,setFile]=useState<File|null>(null); const [error,setError]=useState(''); const [showCalc,setShowCalc]=useState(false);
  const set=(key:string,value:string)=>setForm(f=>({...f,[key]:value}));
  async function submit(e:FormEvent) { e.preventDefault(); setError(''); try {
   let files: {name:string;objectPath:string;size:number;contentType:string}[]=[];
@@ -139,8 +176,16 @@ function NewTicketPage() {
  <Field label="Observações"><textarea className="control min-h-24" value={form.observations} onChange={e=>set('observations',e.target.value)} placeholder="Notas para a equipa"/></Field></div></div>
  <div><div className="panel-title mb-4">Especificações de produção</div><div className="grid sm:grid-cols-3 gap-4"><Field label="Quantidade *"><input className="control" type="number" min="1" required value={form.quantity} onChange={e=>set('quantity',e.target.value)}/></Field><Field label="Formato"><input className="control" value={form.format} onChange={e=>set('format',e.target.value)} placeholder="A5, 90 × 50 mm"/></Field><Field label="Material"><input className="control" value={form.material} onChange={e=>set('material',e.target.value)} placeholder="Couché 300 g"/></Field><Field label="Cores"><input className="control" value={form.colors} onChange={e=>set('colors',e.target.value)} placeholder="4/4, CMYK"/></Field><Field label="Acabamento"><input className="control" value={form.finishing} onChange={e=>set('finishing',e.target.value)} placeholder="Laminação, corte"/></Field><Field label="Prazo *"><input className="control" type="date" required value={form.dueDate} onChange={e=>set('dueDate',e.target.value)}/></Field></div></div>
  <label className="flex items-center gap-3 border border-dashed border-border rounded-md p-4 cursor-pointer hover:bg-muted/50"><FilePlus2 size={18} className="text-primary"/><span className="min-w-0"><span className="block text-xs font-semibold">{file?.name||'Anexar ficheiro de referência'}</span><span className="block text-[10px] text-muted-foreground">Arte, PDF ou instruções · envio seguro</span></span><input className="hidden" type="file" onChange={e=>setFile(e.target.files?.[0]||null)}/></label></div>
- <aside className="panel p-5 space-y-4"><div className="panel-title">Planeamento</div><Field label="Prioridade"><select className="control" value={form.priority} onChange={e=>set('priority',e.target.value)}><option value="BAIXA">Baixa</option><option value="NORMAL">Normal</option><option value="ALTA">Alta</option><option value="URGENTE">Urgente</option></select></Field><Field label="Responsável inicial"><input className="control" value={form.responsible} onChange={e=>set('responsible',e.target.value)} placeholder="Nome da pessoa"/></Field><Field label="Valor acordado (Kz)"><input className="control" type="number" min="0" value={form.amount} onChange={e=>set('amount',e.target.value)} placeholder="0"/></Field><div className="rounded-md bg-secondary/60 p-3 text-[11px] leading-relaxed text-secondary-foreground"><ShieldCheck size={15} className="inline mr-2"/>A abertura cria um ticket. A ordem de produção só será criada após aprovação da gestão.</div>{error&&<p className="text-xs text-destructive">{error}</p>}<button className="btn btn-primary w-full" disabled={create.isPending||reqUpload.isPending} type="submit">{create.isPending||reqUpload.isPending?'A registar…':'Registar pedido'}<ArrowRight size={14}/></button><Link href="/pedidos" className="btn w-full">Cancelar</Link></aside>
- </form></main>
+ <aside className="panel p-5 space-y-4"><div className="panel-title">Planeamento</div><Field label="Prioridade"><select className="control" value={form.priority} onChange={e=>set('priority',e.target.value)}><option value="BAIXA">Baixa</option><option value="NORMAL">Normal</option><option value="ALTA">Alta</option><option value="URGENTE">Urgente</option></select></Field><Field label="Responsável inicial"><input className="control" value={form.responsible} onChange={e=>set('responsible',e.target.value)} placeholder="Nome da pessoa"/></Field><Field label="Valor acordado (Kz)">
+  <div className="flex gap-2">
+    <input className="control flex-1 font-mono font-bold" type="number" min="0" value={form.amount} onChange={e=>set('amount',e.target.value)} placeholder="0"/>
+    <button type="button" className="btn btn-sm text-xs flex items-center gap-1 shrink-0 bg-secondary hover:bg-secondary/80 cursor-pointer" onClick={()=>setShowCalc(true)} title="Abrir Calculadora Gráfica">
+      <Calculator size={13} className="text-primary"/> Calcular
+    </button>
+  </div>
+</Field><div className="rounded-md bg-secondary/60 p-3 text-[11px] leading-relaxed text-secondary-foreground"><ShieldCheck size={15} className="inline mr-2"/>A abertura cria um ticket. A ordem de produção só será criada após aprovação da gestão.</div>{error&&<p className="text-xs text-destructive">{error}</p>}<button className="btn btn-primary w-full" disabled={create.isPending||reqUpload.isPending} type="submit">{create.isPending||reqUpload.isPending?'A registar…':'Registar pedido'}<ArrowRight size={14}/></button><Link href="/pedidos" className="btn w-full">Cancelar</Link></aside>
+ {showCalc && <PrintCalculatorModal initialQuantity={Number(form.quantity)||1000} onApply={(val, note)=>{set('amount', String(val)); if(!form.observations) set('observations', note); else set('observations', form.observations + '\n' + note);}} onClose={()=>setShowCalc(false)}/>}
+</form></main>
 }
 function Field({label,children}:{label:string,children:ReactNode}) { return <div className="field"><label>{label}</label>{children}</div> }
 
@@ -167,7 +212,12 @@ function TicketPage() {
     <div className="border-t border-border pt-4 mt-4">{canDesign&&canSubmitVersion?<><div className="field mb-3"><label>Nova versão de arte</label><input type="file" className="control" onChange={e=>setFile(e.target.files?.[0]||null)}/></div><input className="control mb-3" placeholder="Nota para o cliente (opcional)" value={note} onChange={e=>setNote(e.target.value)}/><button className="btn btn-primary btn-sm" disabled={!file||version.isPending||upload.isPending} onClick={sendVersion}>{version.isPending||upload.isPending?'A carregar…':'Carregar e enviar para aprovação'}<ArrowRight size={13}/></button></>:<p className="text-xs text-muted-foreground mb-0">{canDesign?'O pedido ainda não está na etapa de design.':'O envio de arte está reservado ao perfil de Designer.'}</p>}{feedback&&<div className="text-xs mt-2 text-muted-foreground">{feedback}</div>}</div>
   </div></div>
    <div className="panel"><div className="panel-head"><div className="panel-title">Decisão da gestão</div><ShieldCheck size={16} className="text-primary"/></div><div className="p-5"><div className="text-xs text-muted-foreground mb-4">{t.orderId?'Ordem de produção criada após aprovação da gestão.':awaitingManagement?'A amostra do cliente foi aprovada. A gestão decide se cria a ordem.':'A decisão fica disponível depois da aprovação da amostra pelo cliente.'}</div>{canManage&&awaitingManagement?<><input className="control mb-3" value={comment} onChange={e=>setComment(e.target.value)} placeholder="Comentário da gestão"/><div className="flex flex-wrap gap-2"><button className="btn btn-primary" disabled={decision.isPending||!!t.orderId} onClick={async()=>{await decision.mutateAsync({ticketId:id,data:{decision:'APROVAR_PRODUCAO',comment:comment||null}});await refresh();}}>Aprovar para produção</button><button className="btn" disabled={decision.isPending} onClick={async()=>{await decision.mutateAsync({ticketId:id,data:{decision:'DEVOLVER',comment:comment||null}});await refresh();}}>Devolver</button><button className="btn" disabled={decision.isPending} onClick={async()=>{if(confirm('Cancelar este pedido?')){await decision.mutateAsync({ticketId:id,data:{decision:'CANCELAR',comment:comment||null}});await refresh();}}}>Cancelar</button></div></>:<p className="text-[10px] text-muted-foreground mb-0">{canManage?'Aguarda primeiro a decisão do cliente.':'A decisão de produção está reservada à Gestão.'}</p>}<p className="text-[10px] text-muted-foreground mt-3 mb-0">Sem aprovação formal da gestão, não existe ordem de produção.</p></div></div>
- </section><aside className="space-y-4">{t.sampleApprovalUrl&&<div className="panel p-5"><div className="eyebrow">Aprovação externa</div><div className="font-display font-bold mt-2">Link da amostra</div><p className="text-[11px] text-muted-foreground">Partilhe este endereço com o cliente. A decisão fica registada com data e hora.</p><a className="btn btn-primary btn-sm" href={t.sampleApprovalUrl} target="_blank" rel="noreferrer">Abrir aprovação <ArrowRight size={13}/></a></div>}<div className="panel"><div className="panel-head"><div className="panel-title">Registo de actividade</div><Clock3 size={15}/></div><div className="p-5">{t.events.length?t.events.slice().reverse().map(e=><div className="timeline-item" key={e.id}><div className="flex justify-between gap-2"><div className="text-xs font-semibold">{e.action}</div><time className="font-mono text-[9px] text-muted-foreground whitespace-nowrap">{dateTime(e.createdAt)}</time></div><div className="text-[11px] text-muted-foreground mt-1">{e.actorName}{e.previousState&&e.newState?` · ${human(e.previousState)} → ${human(e.newState)}`:''}</div>{e.note&&<div className="text-[11px] mt-1">{e.note}</div>}</div>):<Empty title="Sem eventos" detail="Todas as alterações ficarão registadas aqui."/ >}</div></div>
+ </section><aside className="space-y-4">{t.sampleApprovalUrl&&<div className="panel p-5"><div className="eyebrow">Aprovação externa</div><div className="font-display font-bold mt-2">Link da amostra</div><p className="text-[11px] text-muted-foreground">Partilhe este endereço com o cliente. A decisão fica registada com data e hora.</p><div className="flex flex-col gap-2 mt-3">
+      <a className="btn btn-primary btn-sm" href={t.sampleApprovalUrl} target="_blank" rel="noreferrer">Abrir aprovação <ArrowRight size={13}/></a>
+      <a className="btn btn-sm text-white flex items-center justify-center gap-1.5 cursor-pointer" style={{background:'#16a34a'}} href={`https://wa.me/${(t.phone||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Olá ${t.contact||t.clientName}, a sua prova digital para "${t.product}" (Ticket ${t.ticketCode}) está pronta para validação pela Gráfica Flow.\n\nPor favor aceda ao link seguro para validar ou solicitar alterações:\n${window.location.origin}${t.sampleApprovalUrl}`)}`} target="_blank" rel="noreferrer">
+        <MessageCircle size={14}/> Enviar Prova por WhatsApp
+      </a>
+    </div></div>}<div className="panel"><div className="panel-head"><div className="panel-title">Registo de actividade</div><Clock3 size={15}/></div><div className="p-5">{t.events.length?t.events.slice().reverse().map(e=><div className="timeline-item" key={e.id}><div className="flex justify-between gap-2"><div className="text-xs font-semibold">{e.action}</div><time className="font-mono text-[9px] text-muted-foreground whitespace-nowrap">{dateTime(e.createdAt)}</time></div><div className="text-[11px] text-muted-foreground mt-1">{e.actorName}{e.previousState&&e.newState?` · ${human(e.previousState)} → ${human(e.newState)}`:''}</div>{e.note&&<div className="text-[11px] mt-1">{e.note}</div>}</div>):<Empty title="Sem eventos" detail="Todas as alterações ficarão registadas aqui."/ >}</div></div>
  <div className="panel p-5"><div className="eyebrow">Cliente</div><div className="font-display font-bold mt-2">{t.clientName}</div><div className="text-xs text-muted-foreground mt-1">{t.company||'Cliente particular'}</div><div className="mt-4 border-t border-border pt-3 space-y-2 text-xs"><div>{t.contact||'Contacto não indicado'}</div><div>{t.email||'Email não indicado'}</div><div>{t.phone||'Telefone não indicado'}</div></div></div>
  </aside></div></main>
 }
