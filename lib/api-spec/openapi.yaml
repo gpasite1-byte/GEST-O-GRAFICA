@@ -3,13 +3,29 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: API para gestão integral da produção gráfica.
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Autenticação de colaboradores.
+  - name: dashboard
+    description: Indicadores e actividade recente.
+  - name: clients
+    description: Clientes da gráfica.
+  - name: tickets
+    description: Pedidos, versões de arte e aprovações.
+  - name: approvals
+    description: Aprovação pública de amostras por link.
+  - name: orders
+    description: Ordens e etapas de produção.
+  - name: team
+    description: Colaboradores e permissões.
+  - name: storage
+    description: Armazenamento de artes e comprovativos.
 paths:
   /healthz:
     get:
@@ -24,7 +40,448 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/user:
+    get:
+      operationId: getCurrentAuthUser
+      tags: [auth]
+      summary: Obter o utilizador autenticado
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: Estado de autenticação.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserEnvelope"
+  /login:
+    get:
+      operationId: beginBrowserLogin
+      tags: [auth]
+      summary: Iniciar sessão
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "302": { description: Redireccionamento para autenticação. }
+  /callback:
+    get:
+      operationId: handleBrowserLoginCallback
+      tags: [auth]
+      summary: Concluir autenticação
+      parameters:
+        - { name: code, in: query, required: false, schema: { type: string } }
+        - { name: state, in: query, required: false, schema: { type: string } }
+        - { name: iss, in: query, required: false, schema: { type: string, format: uri } }
+      responses:
+        "302": { description: Redireccionamento após autenticação. }
+  /logout:
+    get:
+      operationId: logoutBrowserSession
+      tags: [auth]
+      summary: Terminar sessão
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+        - { name: returnTo, in: query, required: false, schema: { type: string, default: "/" } }
+      responses:
+        "302": { description: Sessão terminada. }
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Indicadores do fluxo de trabalho
+      responses:
+        "200":
+          description: Resumo operacional.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /activity:
+    get:
+      operationId: listActivity
+      tags: [dashboard]
+      summary: Actividade recente de tickets e ordens
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Eventos mais recentes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TimelineEvent" }
+  /clients:
+    get:
+      operationId: listClients
+      tags: [clients]
+      summary: Listar clientes
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Clientes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Client" }
+    post:
+      operationId: createClient
+      tags: [clients]
+      summary: Registar cliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClientInput" }
+      responses:
+        "201":
+          description: Cliente criado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Client" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /tickets:
+    get:
+      operationId: listTickets
+      tags: [tickets]
+      summary: Pesquisar tickets
+      parameters:
+        - { name: search, in: query, required: false, schema: { type: string } }
+        - { name: status, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: Tickets correspondentes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TicketSummary" }
+    post:
+      operationId: createTicket
+      tags: [tickets]
+      summary: Abrir pedido e gerar ticket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TicketInput" }
+      responses:
+        "201":
+          description: Ticket criado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TicketDetails" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /tickets/{ticketId}:
+    get:
+      operationId: getTicket
+      tags: [tickets]
+      summary: Consultar ticket e histórico completo
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+      responses:
+        "200":
+          description: Detalhe do ticket.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TicketDetails" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /tickets/{ticketId}/analysis:
+    post:
+      operationId: analyzeTicket
+      tags: [tickets]
+      summary: Analisar ou encaminhar um pedido
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TicketAnalysisInput" }
+      responses:
+        "200":
+          description: Ticket actualizado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TicketDetails" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /tickets/{ticketId}/versions:
+    post:
+      operationId: createArtworkVersion
+      tags: [tickets]
+      summary: Guardar uma nova versão de arte e enviá-la para aprovação
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ArtworkVersionInput" }
+      responses:
+        "201":
+          description: Nova versão criada e link de aprovação gerado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ArtworkVersionCreated" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /tickets/{ticketId}/management-decision:
+    post:
+      operationId: decideTicketProduction
+      tags: [tickets]
+      summary: Aprovar, devolver ou cancelar a produção
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ManagementDecisionInput" }
+      responses:
+        "200":
+          description: Decisão registada e, quando aprovada, OP criada automaticamente.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TicketDetails" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /approvals/{token}:
+    get:
+      operationId: getSampleApproval
+      tags: [approvals]
+      summary: Consultar amostra através de link seguro
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string, minLength: 32 } }
+      responses:
+        "200":
+          description: Amostra pendente ou decisão já registada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApprovalView" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /approvals/{token}/file:
+    get:
+      operationId: getSampleApprovalFile
+      tags: [approvals]
+      summary: Abrir o ficheiro da amostra através do link seguro
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string, minLength: 32 } }
+      responses:
+        "200":
+          description: Ficheiro da amostra.
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+            image/*:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /approvals/{token}/decision:
+    post:
+      operationId: decideSampleApproval
+      tags: [approvals]
+      summary: Aprovar ou rejeitar a amostra
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string, minLength: 32 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SampleDecisionInput" }
+      responses:
+        "200":
+          description: Decisão registada no histórico.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApprovalView" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /orders:
+    get:
+      operationId: listOrders
+      tags: [orders]
+      summary: Pesquisar ordens de produção
+      parameters:
+        - { name: search, in: query, required: false, schema: { type: string } }
+        - { name: status, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: Ordens correspondentes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/OrderSummary" }
+  /orders/{orderId}:
+    get:
+      operationId: getOrder
+      tags: [orders]
+      summary: Consultar OP e fases de produção
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: Detalhe da ordem.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrderDetails" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /orders/{orderId}/stages:
+    post:
+      operationId: updateOrderStage
+      tags: [orders]
+      summary: Iniciar ou concluir uma etapa produtiva
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrderStageInput" }
+      responses:
+        "200":
+          description: Etapa registada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrderDetails" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /orders/{orderId}/quality-check:
+    post:
+      operationId: submitQualityCheck
+      tags: [orders]
+      summary: Registar controlo de qualidade
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QualityCheckInput" }
+      responses:
+        "200":
+          description: Controlo de qualidade registado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrderDetails" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /orders/{orderId}/delivery:
+    post:
+      operationId: updateOrderDelivery
+      tags: [orders]
+      summary: Registar expedição ou confirmação de entrega
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeliveryInput" }
+      responses:
+        "200":
+          description: Entrega actualizada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrderDetails" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /team:
+    get:
+      operationId: listTeamMembers
+      tags: [team]
+      summary: Listar colaboradores e respectivos perfis
+      responses:
+        "200":
+          description: Colaboradores.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TeamMember" }
+  /team/{staffId}/role:
+    patch:
+      operationId: updateTeamRole
+      tags: [team]
+      summary: Alterar o perfil de um colaborador
+      parameters:
+        - { name: staffId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TeamRoleInput" }
+      responses:
+        "200":
+          description: Perfil actualizado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TeamMember" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Solicitar URL segura para carregar ficheiro
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UploadUrlRequest" }
+      responses:
+        "200":
+          description: URL de carregamento e caminho do ficheiro.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UploadUrlResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
 components:
+  parameters:
+    AuthorizationSessionHeader:
+      name: Authorization
+      in: header
+      required: false
+      schema: { type: string }
+    SessionCookie:
+      name: sid
+      in: cookie
+      required: false
+      schema: { type: string }
+    TicketId:
+      name: ticketId
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+  responses:
+    BadRequest:
+      description: Dados inválidos ou transição não permitida.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    NotFound:
+      description: Registo não encontrado.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +490,365 @@ components:
           type: string
       required:
         - status
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    AuthUser:
+      type: object
+      required: [id, email, firstName, lastName, profileImageUrl]
+      properties:
+        id: { type: string }
+        email: { type: [string, "null"], format: email }
+        firstName: { type: [string, "null"] }
+        lastName: { type: [string, "null"] }
+        profileImageUrl: { type: [string, "null"], format: uri }
+    AuthUserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          oneOf:
+            - { $ref: "#/components/schemas/AuthUser" }
+            - { type: "null" }
+    Client:
+      type: object
+      required: [id, name, company, contact, email, phone, createdAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        company: { type: [string, "null"] }
+        contact: { type: [string, "null"] }
+        email: { type: [string, "null"], format: email }
+        phone: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+    ClientInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+        company: { type: [string, "null"] }
+        contact: { type: [string, "null"] }
+        email: { type: [string, "null"], format: email }
+        phone: { type: [string, "null"] }
+    StoredFile:
+      type: object
+      required: [name, objectPath, size, contentType]
+      properties:
+        name: { type: string }
+        objectPath: { type: string }
+        size: { type: integer }
+        contentType: { type: string }
+    TimelineEvent:
+      type: object
+      required: [id, ticketId, ticketCode, orderId, actorName, action, previousState, newState, note, createdAt]
+      properties:
+        id: { type: integer }
+        ticketId: { type: integer }
+        ticketCode: { type: string }
+        orderId: { type: ["integer", "null"] }
+        actorName: { type: string }
+        action: { type: string }
+        previousState: { type: [string, "null"] }
+        newState: { type: [string, "null"] }
+        note: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+    ArtworkVersion:
+      type: object
+      required: [id, version, fileName, objectPath, fileSize, contentType, status, notes, createdBy, createdAt, decidedAt, decisionComment]
+      properties:
+        id: { type: integer }
+        version: { type: integer }
+        fileName: { type: string }
+        objectPath: { type: string }
+        fileSize: { type: integer }
+        contentType: { type: string }
+        status: { type: string, enum: [RASCUNHO, AGUARDA_APROVACAO, APROVADA, REJEITADA] }
+        notes: { type: [string, "null"] }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: ["string", "null"], format: date-time }
+        decisionComment: { type: [string, "null"] }
+    TicketSummary:
+      type: object
+      required: [id, ticketCode, status, clientName, company, product, quantity, dueDate, priority, amount, responsible, createdAt, updatedAt, orderId]
+      properties:
+        id: { type: integer }
+        ticketCode: { type: string }
+        status: { type: string }
+        clientName: { type: string }
+        company: { type: [string, "null"] }
+        product: { type: string }
+        quantity: { type: integer }
+        dueDate: { type: string, format: date }
+        priority: { type: string, enum: [BAIXA, NORMAL, ALTA, URGENTE] }
+        amount: { type: ["number", "null"] }
+        responsible: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        orderId: { type: ["integer", "null"] }
+    TicketDetails:
+      allOf:
+        - { $ref: "#/components/schemas/TicketSummary" }
+        - type: object
+          required: [clientId, contact, email, phone, description, format, material, colors, finishing, observations, createdBy, assignedDesigner, versions, events, sampleApprovalUrl]
+          properties:
+            clientId: { type: integer }
+            contact: { type: [string, "null"] }
+            email: { type: [string, "null"], format: email }
+            phone: { type: [string, "null"] }
+            description: { type: string }
+            format: { type: [string, "null"] }
+            material: { type: [string, "null"] }
+            colors: { type: [string, "null"] }
+            finishing: { type: [string, "null"] }
+            observations: { type: [string, "null"] }
+            createdBy: { type: string }
+            assignedDesigner: { type: [string, "null"] }
+            versions:
+              type: array
+              items: { $ref: "#/components/schemas/ArtworkVersion" }
+            events:
+              type: array
+              items: { $ref: "#/components/schemas/TimelineEvent" }
+            sampleApprovalUrl: { type: [string, "null"], format: uri-reference }
+    TicketInput:
+      type: object
+      required: [clientId, product, description, quantity, dueDate]
+      properties:
+        clientId: { type: integer, minimum: 1 }
+        product: { type: string, minLength: 1 }
+        description: { type: string, minLength: 1 }
+        quantity: { type: integer, minimum: 1 }
+        format: { type: [string, "null"] }
+        material: { type: [string, "null"] }
+        colors: { type: [string, "null"] }
+        finishing: { type: [string, "null"] }
+        dueDate: { type: string, format: date }
+        priority: { type: string, enum: [BAIXA, NORMAL, ALTA, URGENTE], default: NORMAL }
+        amount: { type: ["number", "null"], minimum: 0 }
+        responsible: { type: [string, "null"] }
+        observations: { type: [string, "null"] }
+        files:
+          type: array
+          items: { $ref: "#/components/schemas/StoredFile" }
+    TicketAnalysisInput:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [APROVAR_DESIGN, PEDIR_INFORMACAO, RECUSAR] }
+        comment: { type: [string, "null"] }
+        assignedDesigner: { type: [string, "null"] }
+    ArtworkVersionInput:
+      type: object
+      required: [fileName, objectPath, fileSize, contentType]
+      properties:
+        fileName: { type: string, minLength: 1 }
+        objectPath: { type: string, minLength: 1 }
+        fileSize: { type: integer, minimum: 1 }
+        contentType: { type: string, minLength: 1 }
+        notes: { type: [string, "null"] }
+    ArtworkVersionCreated:
+      type: object
+      required: [version, approvalUrl]
+      properties:
+        version: { $ref: "#/components/schemas/ArtworkVersion" }
+        approvalUrl: { type: string, format: uri-reference }
+    ManagementDecisionInput:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [APROVAR_PRODUCAO, DEVOLVER, CANCELAR] }
+        comment: { type: [string, "null"] }
+    ApprovalView:
+      type: object
+      required: [ticketCode, clientName, company, product, quantity, dueDate, version, fileName, contentType, status, submittedAt, decisionComment]
+      properties:
+        ticketCode: { type: string }
+        clientName: { type: string }
+        company: { type: [string, "null"] }
+        product: { type: string }
+        quantity: { type: integer }
+        dueDate: { type: string, format: date }
+        version: { type: integer }
+        fileName: { type: string }
+        contentType: { type: string }
+        status: { type: string }
+        submittedAt: { type: string, format: date-time }
+        decisionComment: { type: [string, "null"] }
+    SampleDecisionInput:
+      type: object
+      required: [decision, approverName]
+      properties:
+        decision: { type: string, enum: [APROVAR, REJEITAR] }
+        approverName: { type: string, minLength: 1 }
+        comment: { type: [string, "null"] }
+    OrderSummary:
+      type: object
+      required: [id, orderCode, ticketId, ticketCode, clientName, product, quantity, status, currentStage, dueDate, approvedVersion, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        orderCode: { type: string }
+        ticketId: { type: integer }
+        ticketCode: { type: string }
+        clientName: { type: string }
+        product: { type: string }
+        quantity: { type: integer }
+        status: { type: string }
+        currentStage: { type: string }
+        dueDate: { type: string, format: date }
+        approvedVersion: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    OrderStage:
+      type: object
+      required: [id, stage, status, responsible, machine, startedAt, completedAt, quantityProduced, waste, notes]
+      properties:
+        id: { type: integer }
+        stage: { type: string }
+        status: { type: string }
+        responsible: { type: [string, "null"] }
+        machine: { type: [string, "null"] }
+        startedAt: { type: ["string", "null"], format: date-time }
+        completedAt: { type: ["string", "null"], format: date-time }
+        quantityProduced: { type: ["integer", "null"] }
+        waste: { type: ["integer", "null"] }
+        notes: { type: [string, "null"] }
+    QualityCheck:
+      type: object
+      required: [id, checklist, decision, notes, checkedBy, checkedAt]
+      properties:
+        id: { type: integer }
+        checklist:
+          type: object
+          required: [quantity, format, material, colors, finishing, approvedArtwork, defectFree, packaging]
+          properties:
+            quantity: { type: boolean }
+            format: { type: boolean }
+            material: { type: boolean }
+            colors: { type: boolean }
+            finishing: { type: boolean }
+            approvedArtwork: { type: boolean }
+            defectFree: { type: boolean }
+            packaging: { type: boolean }
+        decision: { type: string, enum: [APROVADO, REPROCESSAR] }
+        notes: { type: [string, "null"] }
+        checkedBy: { type: string }
+        checkedAt: { type: string, format: date-time }
+    Delivery:
+      type: object
+      required: [method, responsible, dispatchAt, deliveredAt, proof, signature, photoPath]
+      properties:
+        method: { type: [string, "null"], enum: [LEVANTAMENTO, ENTREGA_PROPRIA, TRANSPORTADORA, null] }
+        responsible: { type: [string, "null"] }
+        dispatchAt: { type: ["string", "null"], format: date-time }
+        deliveredAt: { type: ["string", "null"], format: date-time }
+        proof: { type: [string, "null"] }
+        signature: { type: [string, "null"] }
+        photoPath: { type: [string, "null"] }
+    OrderDetails:
+      allOf:
+        - { $ref: "#/components/schemas/OrderSummary" }
+        - type: object
+          required: [approvedFileName, approvedObjectPath, stages, qualityCheck, delivery, events]
+          properties:
+            approvedFileName: { type: string }
+            approvedObjectPath: { type: string }
+            stages:
+              type: array
+              items: { $ref: "#/components/schemas/OrderStage" }
+            qualityCheck:
+              oneOf:
+                - { $ref: "#/components/schemas/QualityCheck" }
+                - { type: "null" }
+            delivery: { $ref: "#/components/schemas/Delivery" }
+            events:
+              type: array
+              items: { $ref: "#/components/schemas/TimelineEvent" }
+    OrderStageInput:
+      type: object
+      required: [stage, action]
+      properties:
+        stage: { type: string, enum: [PRE_IMPRESSAO, IMPRESSAO, ACABAMENTO, EMBALAGEM] }
+        action: { type: string, enum: [INICIAR, CONCLUIR] }
+        responsible: { type: [string, "null"] }
+        machine: { type: [string, "null"] }
+        quantityProduced: { type: ["integer", "null"], minimum: 0 }
+        waste: { type: ["integer", "null"], minimum: 0 }
+        notes: { type: [string, "null"] }
+    QualityCheckInput:
+      type: object
+      required: [checklist, decision]
+      properties:
+        checklist:
+          type: object
+          required: [quantity, format, material, colors, finishing, approvedArtwork, defectFree, packaging]
+          properties:
+            quantity: { type: boolean }
+            format: { type: boolean }
+            material: { type: boolean }
+            colors: { type: boolean }
+            finishing: { type: boolean }
+            approvedArtwork: { type: boolean }
+            defectFree: { type: boolean }
+            packaging: { type: boolean }
+        decision: { type: string, enum: [APROVADO, REPROCESSAR] }
+        notes: { type: [string, "null"] }
+    DeliveryInput:
+      type: object
+      required: [action]
+      properties:
+        action: { type: string, enum: [EXPEDIR, CONFIRMAR_ENTREGA] }
+        method: { type: [string, "null"], enum: [LEVANTAMENTO, ENTREGA_PROPRIA, TRANSPORTADORA, null] }
+        responsible: { type: [string, "null"] }
+        proof: { type: [string, "null"] }
+        signature: { type: [string, "null"] }
+        photoPath: { type: [string, "null"] }
+    TeamMember:
+      type: object
+      required: [id, name, email, role, createdAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: [string, "null"], format: email }
+        role: { type: string, enum: [ADMIN, GESTAO, ATENDIMENTO, DESIGNER, PRODUCAO, QUALIDADE, EXPEDICAO] }
+        createdAt: { type: string, format: date-time }
+    TeamRoleInput:
+      type: object
+      required: [role]
+      properties:
+        role: { type: string, enum: [ADMIN, GESTAO, ATENDIMENTO, DESIGNER, PRODUCAO, QUALIDADE, EXPEDICAO] }
+    DashboardSummary:
+      type: object
+      required: [openTickets, inDesign, awaitingSample, awaitingManagement, inProduction, finishing, readyForDelivery, overdue, deliveredToday, averageApprovalMinutes, averageProductionMinutes, recentActivity]
+      properties:
+        openTickets: { type: integer }
+        inDesign: { type: integer }
+        awaitingSample: { type: integer }
+        awaitingManagement: { type: integer }
+        inProduction: { type: integer }
+        finishing: { type: integer }
+        readyForDelivery: { type: integer }
+        overdue: { type: integer }
+        deliveredToday: { type: integer }
+        averageApprovalMinutes: { type: integer }
+        averageProductionMinutes: { type: integer }
+        recentActivity:
+          type: array
+          items: { $ref: "#/components/schemas/TimelineEvent" }
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name: { type: string, minLength: 1 }
+        size: { type: integer, minimum: 1 }
+        contentType: { type: string, minLength: 1 }
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath, metadata]
+      properties:
+        uploadURL: { type: string, format: uri }
+        objectPath: { type: string }
+        metadata: { $ref: "#/components/schemas/UploadUrlRequest" }
 

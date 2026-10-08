@@ -1,0 +1,715 @@
+sistema de Gestão de Processos e Produção Gráfica (MIS), mas adaptado ao fluxo específico da tua empresa.
+A lógica principal deve ser: nenhum trabalho entra em produção sem passar pelas aprovações obrigatórias. Esse modelo é coerente com sistemas profissionais de produção gráfica, que ligam pedido, arte, prova, aprovação, ordem de produção e entrega num único registo. ProofScene
+Estrutura que eu recomendo
+1. SOLICITAÇÃO DO SERVIÇO
+O utilizador cria um novo pedido:
+Ticket: PG-2026-00001
+Campos:
+- Cliente
+- Contacto
+- Empresa
+- Tipo de produto
+- Descrição do trabalho
+- Quantidade
+- Formato
+- Material
+- Cores
+- Acabamento
+- Data pretendida
+- Prioridade
+- Ficheiro enviado pelo cliente
+- Observações
+Exemplo:
+Cliente: Empresa ABC
+Produto: 5.000 Flyers
+Formato: A5
+Papel: Couché 115g
+Impressão: Frente e verso
+Acabamento: Corte
+Prazo: 15/10/2026
+
+Estado:
+NOVO → EM ANÁLISE
+2. ANÁLISE DA SOLICITAÇÃO
+A equipa de atendimento/produção analisa o pedido.
+Pode:
+- Aceitar
+- Pedir esclarecimentos
+- Recusar
+- Enviar para Design
+- Alterar especificações
+O sistema mantém todo o histórico.
+Estados
+NOVO
+↓
+EM ANÁLISE
+↓
+AGUARDA INFORMAÇÃO
+↓
+APROVADO PARA DESIGN
+
+3. DESIGN / LAYOUT
+Quando o pedido chega ao designer, aparece na área:
+🎨 Fila de Design
+Ticket	Cliente	Trabalho	Designer	Prazo	Estado
+PG-0001	ABC	Flyer A5	João	15/10	Em Design
+PG-0002	XYZ	Cartaz A3	Maria	16/10	Pendente
+
+
+O designer pode:
+- Baixar ficheiros
+- Criar layout
+- Fazer upload da arte
+- Criar versão
+- Adicionar observações
+Exemplo:
+Layout V1
+Depois:
+V2
+Depois:
+V3
+O sistema nunca deve substituir simplesmente a versão anterior.
+Deve manter:
+V1 → REJEITADA
+V2 → ALTERAÇÃO SOLICITADA
+V3 → APROVADA
+
+Isso é importante porque evita produzir com um ficheiro antigo. Sistemas de proofing profissionais também mantêm o histórico das versões e registam qual versão foi efectivamente aprovada. The Print Shop CRM
+4. APROVAÇÃO DA AMOSTRA
+Aqui está uma das partes mais importantes do sistema.
+O designer envia a amostra.
+O cliente ou responsável recebe um link:
+APROVAR AMOSTRA
+Pode abrir no telemóvel ou computador.
+Página da aprovação
+┌──────────────────────────────────┐
+│       APROVAÇÃO DE AMOSTRA       │
+│                                  │
+│       TICKET PG-2026-00001       │
+│                                  │
+│       [ IMAGEM / PDF ]           │
+│                                  │
+│       VERSÃO: V3                 │
+│                                  │
+│  [ ✓ APROVAR ] [ ✕ REJEITAR ]   │
+│                                  │
+│  Comentário: __________________  │
+└──────────────────────────────────┘
+
+Se clicar:
+❌ REJEITAR
+Volta para:
+DESIGN → ALTERAÇÃO
+E cria:
+V4
+Se clicar:
+✅ APROVAR
+O sistema regista:
+- Nome de quem aprovou
+- Data
+- Hora
+- IP/dispositivo, se desejado
+- Versão aprovada
+- Ficheiro aprovado
+- Observação
+A aprovação fica bloqueada contra alterações silenciosas.
+5. APROVAÇÃO FINAL DA GESTÃO
+Esta é a segunda aprovação que mencionaste.
+Depois da aprovação da amostra pelo cliente:
+AMOSTRA APROVADA
+        ↓
+AGUARDA APROVAÇÃO DA GESTÃO
+        ↓
+GESTÃO APROVA
+        ↓
+CRIAR ORDEM DE PRODUÇÃO
+
+A Gestão recebe:
+Ordem para aprovação
+Ticket: PG-2026-00001
+Cliente: Empresa ABC
+Produto: Flyer A5
+Quantidade: 5.000
+Versão: V3
+Prazo: 15/10/2026
+Amostra: APROVADA
+Valor: 250.000 Kz
+Botões:
+APROVAR PRODUÇÃO
+DEVOLVER
+CANCELAR
+6. CRIAÇÃO AUTOMÁTICA DA ORDEM DE PRODUÇÃO
+Aqui está o ponto central do teu sistema.
+Quando a Gestão clicar:
+✅ APROVAR PRODUÇÃO
+O sistema automaticamente transforma:
+TICKET PG-2026-00001
+em:
+🏭 ORDEM DE PRODUÇÃO
+OP-2026-00001
+Sem o funcionário precisar digitar tudo novamente.
+Isso é uma prática importante em sistemas de produção gráfica: a especificação aprovada deve ser transportada directamente para a ordem/ticket de produção, evitando redigitação e erros. PrinTrace
+7. ORDEM DE PRODUÇÃO
+A OP deve ser muito mais detalhada que o ticket.
+OP-2026-00001
+Cliente: Empresa ABC
+Ticket: PG-2026-00001
+Produto
+- Flyer
+- A5
+- 5.000 unidades
+- Frente e verso
+- Couché 115g
+- CMYK
+- Corte
+Arte
+Ficheiro aprovado:
+flyer_empresa_ABC_V3.pdf
+Versão: V3
+Aprovado por: João Manuel
+Data: 08/10/2026
+Produção
+PRÉ-IMPRESSÃO
+      ↓
+IMPRESSÃO
+      ↓
+ACABAMENTO
+      ↓
+CONTROLO DE QUALIDADE
+      ↓
+EMBALAGEM
+      ↓
+EXPEDIÇÃO
+      ↓
+ENTREGUE
+
+8. PAINEL DA PRODUÇÃO
+A produção deve ter um Kanban.
+🏭 PRODUÇÃO
+┌──────────────┬──────────────┬──────────────┬──────────────┐
+│ A PRODUZIR   │ IMPRESSÃO    │ ACABAMENTO   │ CONCLUÍDO    │
+├──────────────┼──────────────┼──────────────┼──────────────┤
+│ OP-001       │ OP-004       │ OP-007       │ OP-010       │
+│ OP-002       │ OP-005       │ OP-008       │ OP-011       │
+│ OP-003       │ OP-006       │ OP-009       │              │
+└──────────────┴──────────────┴──────────────┴──────────────┘
+
+Cada operação pode ter:
+- Responsável
+- Máquina
+- Data/hora de início
+- Data/hora de conclusão
+- Quantidade produzida
+- Desperdício
+- Observação
+- Estado
+9. CONTROLO DE QUALIDADE
+Antes de entregar:
+CHECKLIST
+☐ Quantidade correcta
+☐ Formato correcto
+☐ Material correcto
+☐ Cores correctas
+☐ Acabamento correcto
+☐ Arte corresponde à versão aprovada
+☐ Produto sem defeitos
+☐ Embalagem correcta
+Resultado:
+APROVADO PARA ENTREGA
+ou
+REPROVADO / REPROCESSAR
+10. ENTREGA
+Depois da produção:
+🚚 ENTREGA
+- Número da OP
+- Cliente
+- Quantidade
+- Data de entrega
+- Responsável pela entrega
+- Método:
+  - Levantamento
+  - Entrega própria
+  - Transportadora
+- Comprovativo
+- Assinatura
+- Foto, opcional
+Estado final:
+✅ ENTREGUE
+Fluxo completo
+Eu estruturaria o sistema desta forma:
+                    SOLICITAÇÃO
+                         │
+                         ▼
+                    ABERTURA DO
+                       TICKET
+                         │
+                         ▼
+                   ANÁLISE DO PEDIDO
+                         │
+                         ▼
+                   ORÇAMENTO/VALIDAÇÃO
+                         │
+                         ▼
+                      DESIGN
+                         │
+                         ▼
+                   LAYOUT / AMOSTRA
+                         │
+              ┌──────────┴──────────┐
+              │                     │
+           REJEITADO             APROVADO
+              │                     │
+              ▼                     ▼
+          NOVA VERSÃO       APROVAÇÃO DA GESTÃO
+                                    │
+                          ┌─────────┴─────────┐
+                          │                   │
+                       DEVOLVER            APROVAR
+                          │                   │
+                          ▼                   ▼
+                       DESIGN          ORDEM DE PRODUÇÃO
+                                              │
+                                              ▼
+                                         PRÉ-IMPRESSÃO
+                                              │
+                                              ▼
+                                           IMPRESSÃO
+                                              │
+                                              ▼
+                                          ACABAMENTO
+                                              │
+                                              ▼
+                                       CONTROLO QUALIDADE
+                                              │
+                                              ▼
+                                           EMBALAGEM
+                                              │
+                                              ▼
+                                            ENTREGA
+                                              │
+                                              ▼
+                                          FINALIZADO
+
+E há uma regra que eu considero essencial
+O sistema deve possuir Gates de aprovação.
+Por exemplo:
+🔴 NÃO PODE PRODUZIR se a amostra não estiver aprovada.
+
+🔴 NÃO PODE CRIAR OP se a Gestão não tiver aprovado.
+
+🔴 NÃO PODE ALTERAR A ARTE APROVADA sem criar nova versão.
+
+🔴 NÃO PODE PRODUZIR V2 quando a OP está vinculada à V3.
+
+Isso reduz bastante o risco de produzir uma versão errada. A literatura recente sobre workflow gráfico destaca justamente a necessidade de aprovação explícita e de bloquear a produção até que as condições de aprovação estejam satisfeitas. The Print Shop CRM
+Módulos do App
+Eu faria inicialmente 9 módulos:
+1. Dashboard
+2. Solicitações / Tickets
+3. Clientes
+4. Design / Layouts
+5. Aprovações
+6. Ordens de Produção
+7. Produção
+8. Qualidade e Entrega
+9. Relatórios
+E perfis:
+- Administrador
+- Gestão
+- Atendimento
+- Designer
+- Produção
+- Qualidade
+- Expedição/Entrega
+- Cliente
+Dashboard da Gestão
+No início, a Gestão deve conseguir ver imediatamente:
+Pedidos hoje: 24
+Em Design: 8
+Aguardando aprovação: 5
+Aguardando Gestão: 3
+Em Produção: 12
+Em Acabamento: 4
+Prontos para entrega: 7
+Atrasados: 2
+Entregues hoje: 15
+E uma coisa particularmente útil: “Onde estão os trabalhos?”
+Porque o sistema deve permitir clicar numa OP e ver toda a linha do tempo:
+Solicitação → Design → V1 → V2 → V3 aprovada → Gestão → OP → Impressão → Acabamento → QC → Entrega.
+Esse conceito de manter um único registo do trabalho desde a solicitação até à produção e entrega, carregando consigo a especificação e os ficheiros aprovados, é precisamente o padrão que aparece nos sistemas modernos de gestão de produção gráfica. InkOps
+Se a ideia é desenvolver este App, eu posso estruturar a seguir o projecto completo, incluindo todas as telas, banco de dados, estados do workflow, permissões, tabelas, campos e regras automáticas, já num formato de especificação técnica para construir em Next.js + TypeScript + Supabase.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Quero um App que faz o controlo da Gestão  de Processo Grafico no  na Area de Produção Grafica, desde a Solicitação até a Entrega, em todo processo feito deve parecer hora e o minuto da qual foi feito.
+
+
+O processo de iniciar desde a Solicitação,  do layout, aprovação  da amostra e aprovação final da Gestão, esse sistema deve criar um tickets de pedido e quando aprovado amostra e criar uma ordem de Produção Final
+
+
+
+
+
+
+
+
+
+
+
+
+Sim. Neste caso, o sistema deve ser pensado como um Workflow de Produção Gráfica com rastreabilidade total, em que cada acção fica registada automaticamente com data, hora e minuto, utilizador e estado anterior/novo.
+Fluxo principal
+SOLICITAÇÃO
+     ↓
+TICKET DE PEDIDO
+     ↓
+ANÁLISE
+     ↓
+LAYOUT / DESIGN
+     ↓
+ENVIO DA AMOSTRA
+     ↓
+APROVAÇÃO DA AMOSTRA
+     ↓
+APROVAÇÃO FINAL DA GESTÃO
+     ↓
+ORDEM DE PRODUÇÃO
+     ↓
+PRÉ-IMPRESSÃO
+     ↓
+IMPRESSÃO
+     ↓
+ACABAMENTO
+     ↓
+CONTROLO DE QUALIDADE
+     ↓
+EXPEDIÇÃO
+     ↓
+ENTREGA
+     ↓
+PROCESSO CONCLUÍDO
+
+1. TICKET DE PEDIDO
+Quando alguém cria uma solicitação, o sistema gera automaticamente:
+TICKET Nº PG-2026-000001
+E grava imediatamente:
+Criado por: João Manuel
+Data: 08/10/2026
+Hora: 09:14
+
+O ticket terá:
+- Cliente
+- Contacto
+- Produto
+- Quantidade
+- Formato
+- Material
+- Acabamento
+- Prazo solicitado
+- Ficheiros
+- Observações
+- Prioridade
+- Responsável
+2. HISTÓRICO AUTOMÁTICO
+Esta será uma das funções mais importantes.
+O sistema terá uma Linha do Tempo do Processo.
+Exemplo:
+Data	Hora	Utilizador	Acção
+08/10/2026	09:14	João	Ticket criado
+08/10/2026	09:21	Maria	Pedido analisado
+08/10/2026	10:03	Carlos	Layout iniciado
+08/10/2026	11:47	Carlos	Layout V1 enviado
+08/10/2026	12:15	João	Amostra rejeitada
+08/10/2026	14:32	Carlos	Layout V2 enviado
+08/10/2026	15:08	João	Amostra aprovada
+08/10/2026	15:25	Director	Produção aprovada
+08/10/2026	15:25	Sistema	OP criada
+
+
+Ou seja, ninguém precisa escrever a hora manualmente.
+O sistema utiliza automaticamente a data/hora do servidor.
+3. LAYOUT
+Depois da solicitação ser aprovada para Design:
+Estado: EM DESIGN
+O designer recebe o trabalho.
+Pode carregar:
+- Layout V1
+- Layout V2
+- Layout V3
+- etc.
+Cada versão fica guardada.
+Exemplo:
+PG-2026-000001
+
+LAYOUTS
+
+V1 — 08/10 11:47
+V2 — 08/10 14:32
+V3 — 08/10 16:10
+
+A versão anterior não deve ser apagada.
+4. APROVAÇÃO DA AMOSTRA
+Quando o designer terminar:
+ENVIAR PARA APROVAÇÃO
+O sistema muda automaticamente:
+EM DESIGN → AGUARDA APROVAÇÃO DA AMOSTRA
+O responsável recebe a amostra.
+Pode escolher:
+✅ APROVAR
+ou
+❌ REJEITAR
+Se rejeitar:
+Motivo: Alterar telefone do cliente.
+
+O sistema regista:
+08/10/2026 — 12:15 — João — Amostra V1 rejeitada.
+E o trabalho volta para:
+DESIGN
+5. AMOSTRA APROVADA
+Quando a amostra for aprovada:
+08/10/2026
+15:08
+
+AMOSTRA V2 APROVADA
+
+Aprovado por:
+João Manuel
+
+Neste momento, o sistema não cria ainda a Ordem de Produção, caso queiras manter a segunda aprovação da Gestão.
+Passa para:
+AGUARDA APROVAÇÃO DA GESTÃO
+6. APROVAÇÃO FINAL DA GESTÃO
+A Gestão terá uma área:
+🟠 PROCESSOS AGUARDANDO APROVAÇÃO
+Exemplo:
+PG-2026-000001
+Cliente: Empresa ABC
+Produto: 5.000 Flyers
+Layout: V2
+Amostra: APROVADA
+Valor: 250.000 Kz
+Prazo: 15/10/2026
+
+Botões:
+APROVAR PRODUÇÃO
+DEVOLVER
+CANCELAR
+7. CRIAÇÃO AUTOMÁTICA DA ORDEM DE PRODUÇÃO
+Aqui está a regra fundamental:
+Quando a Gestão clicar em "APROVAR PRODUÇÃO":
+O sistema cria automaticamente:
+OP-2026-000001
+E relaciona:
+TICKET
+PG-2026-000001
+        │
+        └──── OP
+             OP-2026-000001
+
+A OP deve copiar automaticamente os dados aprovados:
+- Cliente
+- Produto
+- Quantidade
+- Formato
+- Material
+- Acabamento
+- Prazo
+- Ficheiro aprovado
+- Versão aprovada
+- Responsável
+- Observações
+E registar:
+OP criada automaticamente pelo sistema
+08/10/2026 às 15:25
+Por: Sistema
+Aprovação: Director João
+
+8. ORDEM DE PRODUÇÃO
+A OP terá um fluxo próprio:
+OP-2026-000001
+A PRODUZIR
+↓  
+PRÉ-IMPRESSÃO
+↓  
+IMPRESSÃO
+↓  
+ACABAMENTO
+↓  
+CONTROLO DE QUALIDADE
+↓  
+PRONTO PARA ENTREGA
+↓  
+ENTREGUE
+9. CADA ETAPA COM DATA E HORA
+Por exemplo:
+Pré-impressão
+Início: 08/10/2026 — 16:02
+Responsável: Carlos
+
+Conclusão: 08/10/2026 — 16:28
+
+Impressão
+Início: 08/10/2026 — 16:35
+Responsável: António
+
+Conclusão: 08/10/2026 — 18:47
+
+Acabamento
+Início: 08/10/2026 — 19:05
+Conclusão: 09/10/2026 — 08:42
+
+Controlo de qualidade
+Início: 09/10/2026 — 09:00
+Aprovado: 09/10/2026 — 09:18
+
+Entrega
+Saída: 09/10/2026 — 10:05
+Entregue: 09/10/2026 — 11:22
+
+10. LINHA DO TEMPO COMPLETA
+Ao abrir uma OP, a Gestão deverá conseguir visualizar:
+┌──────────────────────────────────────────────┐
+│ OP-2026-000001                               │
+│ EMPRESA ABC — 5.000 FLYERS                   │
+├──────────────────────────────────────────────┤
+│                                              │
+│ ● 09:14  Pedido criado                       │
+│ │                                            │
+│ ● 09:21  Pedido analisado                    │
+│ │                                            │
+│ ● 10:03  Design iniciado                     │
+│ │                                            │
+│ ● 11:47  Layout V1 enviado                   │
+│ │                                            │
+│ ● 12:15  Amostra V1 rejeitada                │
+│ │                                            │
+│ ● 14:32  Layout V2 enviado                   │
+│ │                                            │
+│ ● 15:08  Amostra V2 aprovada                 │
+│ │                                            │
+│ ● 15:25  Gestão aprovou produção             │
+│ │                                            │
+│ ● 15:25  OP criada                           │
+│ │                                            │
+│ ● 16:02  Pré-impressão iniciada              │
+│ │                                            │
+│ ● 16:28  Pré-impressão concluída             │
+│ │                                            │
+│ ● 16:35  Impressão iniciada                  │
+│ │                                            │
+│ ● 18:47  Impressão concluída                 │
+│ │                                            │
+│ ● 19:05  Acabamento iniciado                 │
+│ │                                            │
+│ ● 08:42  Acabamento concluído               │
+│ │                                            │
+│ ● 09:18  Controlo de qualidade aprovado      │
+│ │                                            │
+│ ● 11:22  Produto entregue                    │
+│                                              │
+└──────────────────────────────────────────────┘
+
+11. O SISTEMA DEVE CALCULAR OS TEMPOS
+Isto também é importante para a Gestão.
+Por exemplo:
+Tempo até aprovação:
+6h 08min
+Tempo de Design:
+4h 29min
+Tempo de Produção:
+16h 40min
+Tempo total do processo:
+26h 08min
+Assim podes descobrir onde estão os atrasos.
+12. DASHBOARD
+O painel principal poderia mostrar:
+PROCESSOS
+24 Pedidos abertos
+8 Em Design
+5 Aguardam aprovação
+3 Aguardam Gestão
+7 Em Produção
+4 Em Acabamento
+6 Prontos para entrega
+2 Atrasados
+TEMPO MÉDIO
+Solicitação → Aprovação: 5h 32min
+Aprovação → Produção: 1h 14min
+Produção → Entrega: 18h 42min
+13. REGRA DE SEGURANÇA DO WORKFLOW
+Eu colocaria estas regras obrigatórias:
+❌ Sem amostra aprovada → não pode avançar.
+❌ Sem aprovação da Gestão → não pode criar OP.
+❌ OP criada → não pode alterar silenciosamente a arte.
+❌ Arte alterada → nova versão.
+❌ Nova versão → nova aprovação.
+❌ Qualquer alteração → fica registada no histórico.
+E cada evento deve possuir:
+ID
+Utilizador
+Data
+Hora
+Minuto
+Acção
+Estado anterior
+Novo estado
+Observação
+IP (opcional)
+
+Arquitectura que recomendo
+Para desenvolver o teu App, eu usaria:
+Frontend
+- Next.js
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+Backend
+- Supabase
+- PostgreSQL
+- Supabase Auth
+- Storage para artes, PDFs e comprovativos
+Funcionalidades
+- Login
+- Perfis e permissões
+- Tickets
+- Workflow
+- Versionamento de layouts
+- Aprovação online
+- Ordem de produção automática
+- Kanban de produção
+- Linha do tempo
+- Auditoria
+- Notificações
+- Dashboard
+- Relatórios
+- Pesquisa por ticket/OP/cliente
+- Exportação PDF
+Estrutura fundamental da base de dados
+CLIENTES
+   │
+   └── TICKETS
+          │
+          ├── LAYOUTS
+          │     └── VERSÕES
+          │
+          ├── APROVAÇÕES
+          │
+          ├── HISTÓRICO
+          │
+          └── ORDEM DE PRODUÇÃO
+                    │
+                    ├── ETAPAS
+                    ├── CONTROLO DE QUALIDADE
+                    └── ENTREGA
+
+O ponto central é este: o Ticket acompanha o trabalho desde a solicitação, enquanto a OP só nasce depois da aprovação da amostra + aprovação final da Gestão. A partir daí, a OP passa a controlar toda a produção até à entrega, e o histórico de auditoria regista absolutamente cada movimento com data e hora.

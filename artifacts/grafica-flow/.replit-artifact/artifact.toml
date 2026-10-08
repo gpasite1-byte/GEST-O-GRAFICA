@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Gráfica Flow"
+description = "Sistema de gestão de produção gráfica que acompanha cada trabalho desde o pedido e as aprovações da arte até à ordem de produção, controlo de qualidade e entrega, com histórico automático no horário de Luanda."
+version = "1.0.0"
+id = "artifacts/grafica-flow"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25128
+
+[services.development]
+run = "pnpm --filter @workspace/grafica-flow run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/grafica-flow", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/grafica-flow/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25128"
+BASE_PATH = "/"
