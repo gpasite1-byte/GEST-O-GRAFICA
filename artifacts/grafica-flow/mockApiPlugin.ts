@@ -214,7 +214,208 @@ export function mockApiPlugin(): Plugin {
             }
           }
 
-                    // Admin reset endpoint to start from zero
+                    
+          // --- ADMIN VPS & INFRASTRUCTURE TELEMETRY ENDPOINTS ---
+          if (reqPath === '/api/admin/system-stats' && req.method === 'GET') {
+            const t0 = Date.now();
+            let vRes = { rows: [{ version: 'PostgreSQL 15 (Supabase Cloud)' }] };
+            try {
+              vRes = await client.query('SELECT version()');
+            } catch {}
+            const pingMs = Date.now() - t0;
+            
+            const tables = [
+              'print_tickets', 'production_orders', 'production_stages', 'timeline_events',
+              'clients', 'staff_members', 'users', 'artwork_versions', 'quality_checks', 'order_deliveries'
+            ];
+            const tableCounts: Record<string, number> = {};
+            for (const t of tables) {
+              try {
+                const cr = await client.query(`SELECT COUNT(*) as count FROM ${t}`);
+                tableCounts[t] = Number(cr.rows[0]?.count || 0);
+              } catch {
+                tableCounts[t] = 0;
+              }
+            }
+
+            const mem = process.memoryUsage();
+            return sendJson(res, 200, {
+              database: {
+                status: 'ONLINE',
+                engine: 'PostgreSQL 15 (AWS Cloud)',
+                host: 'aws-0-eu-west-1.pooler.supabase.com',
+                port: 6543,
+                region: 'eu-west-1 (Irlanda)',
+                latencyMs: pingMs,
+                fullVersion: vRes.rows[0]?.version || 'PostgreSQL 15',
+                poolerMode: 'Transaction Pooler (Supabase Supavisor)',
+                ssl: true,
+              },
+              system: {
+                uptimeSeconds: Math.floor(process.uptime()),
+                nodeVersion: process.version,
+                platform: process.platform,
+                arch: process.arch,
+                memoryRssMb: Math.round(mem.rss / 1024 / 1024),
+                memoryHeapMb: Math.round(mem.heapUsed / 1024 / 1024),
+                activeUserId,
+              },
+              counts: tableCounts,
+              authProviders: {
+                supabase: true,
+                googleOAuth: {
+                  supported: true,
+                  redirectUri: 'https://czcptgunvyxdajotbyfb.supabase.co/auth/v1/callback',
+                  docsUrl: 'https://supabase.com/docs/guides/auth/social-login/auth-google',
+                }
+              }
+            });
+          }
+
+          if (reqPath === '/api/admin/users') {
+            if (req.method === 'GET') {
+              const list = await client.query(`
+                SELECT u.id, u.email, u.first_name, u.last_name, u.profile_image_url, u.created_at, COALESCE(s.role, 'ATENDIMENTO') as role 
+                FROM users u 
+                LEFT JOIN staff_members s ON u.id = s.id 
+                ORDER BY u.created_at ASC
+              `);
+              return sendJson(res, 200, list.rows);
+            }
+            if (req.method === 'POST') {
+              const body = await parseBody(req);
+              const email = (body.email || '').trim().toLowerCase();
+              const firstName = (body.firstName || '').trim();
+              const lastName = (body.lastName || '').trim();
+              const role = body.role || 'ATENDIMENTO';
+              if (!email || !firstName) {
+                return sendJson(res, 400, { error: 'Email e Nome são obrigatórios.' });
+              }
+              const id = 'usr_' + Math.random().toString(36).substring(2, 9);
+              await client.query('INSERT INTO users (id, email, first_name, last_name, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())', [id, email, firstName, lastName]);
+              await client.query('INSERT INTO staff_members (id, role, created_at, updated_at) VALUES ($1, $2, NOW(), NOW()) ON CONFLICT (id) DO UPDATE SET role = $2', [id, role]);
+              return sendJson(res, 201, { success: true, user: { id, email, firstName, lastName, role } });
+            }
+          }
+
+          const userDeleteMatch = reqPath.match(/^\/api\/admin\/users\/([^/]+)$/);
+          if (userDeleteMatch && req.method === 'DELETE') {
+            const targetId = userDeleteMatch[1];
+            if (targetId === 'usr_admin') {
+              return sendJson(res, 403, { error: 'Não é permitido eliminar o Administrador Gestor principal.' });
+            }
+            await client.query('DELETE FROM staff_members WHERE id = $1', [targetId]);
+            await client.query('DELETE FROM users WHERE id = $1', [targetId]);
+            return sendJson(res, 200, { success: true, deletedId: targetId });
+          }
+
+          if (reqPath === '/api/admin/backup' && req.method === 'GET') {
+            const clients = await client.query('SELECT * FROM clients ORDER BY id ASC');
+            const tickets = await client.query('SELECT * FROM print_tickets ORDER BY id ASC');
+            const orders = await client.query('SELECT * FROM production_orders ORDER BY id ASC');
+            const stages = await client.query('SELECT * FROM production_stages ORDER BY id ASC');
+            const events = await client.query('SELECT * FROM timeline_events ORDER BY id ASC');
+            const staff = await client.query('SELECT * FROM staff_members ORDER BY id ASC');
+            const users = await client.query('SELECT * FROM users ORDER BY id ASC');
+            const artworks = await client.query('SELECT * FROM artwork_versions ORDER BY id ASC');
+            const checks = await client.query('SELECT * FROM quality_checks ORDER BY id ASC');
+            const deliveries = await client.query('SELECT * FROM order_deliveries ORDER BY id ASC');
+
+            const backupData = {
+              metadata: {
+                system: 'Gráfica Flow Enterprise ERP',
+                exportedAt: new Date().toISOString(),
+                exportBy: activeUserId,
+                database: 'Supabase PostgreSQL (eu-west-1 Irlanda)',
+                totalRecords: (clients.rowCount || 0) + (tickets.rowCount || 0) + (orders.rowCount || 0) + (stages.rowCount || 0) + (events.rowCount || 0) + (staff.rowCount || 0) + (users.rowCount || 0)
+              },
+              clients: clients.rows,
+              print_tickets: tickets.rows,
+              production_orders: orders.rows,
+              production_stages: stages.rows,
+              timeline_events: events.rows,
+              staff_members: staff.rows,
+              users: users.rows,
+              artwork_versions: artworks.rows,
+              quality_checks: checks.rows,
+              order_deliveries: deliveries.rows
+            };
+            return sendJson(res, 200, backupData);
+          }
+
+          if (reqPath === '/api/admin/audit-logs' && req.method === 'GET') {
+            const limit = Math.min(Number(queryParams.get('limit') || 50), 200);
+            const auditRes = await client.query(`
+              SELECT e.*, t.ticket_code 
+              FROM timeline_events e
+              LEFT JOIN print_tickets t ON e.ticket_id = t.id
+              ORDER BY e.id DESC
+              LIMIT $1
+            `, [limit]);
+            return sendJson(res, 200, auditRes.rows);
+          }
+
+          // Register / Supabase auth endpoints
+          if (reqPath === '/api/auth/register' && req.method === 'POST') {
+            const body = await parseBody(req);
+            const email = (body.email || '').trim().toLowerCase();
+            const firstName = (body.firstName || '').trim();
+            const lastName = (body.lastName || '').trim();
+            const role = body.role || 'ATENDIMENTO';
+            if (!email || !firstName) {
+              return sendJson(res, 400, { error: 'Email e Nome são obrigatórios.' });
+            }
+            const existing = await client.query('SELECT * FROM users WHERE email = $1', [email]);
+            let userId = '';
+            if (existing.rows.length > 0) {
+              userId = existing.rows[0].id;
+              await client.query('UPDATE users SET first_name = $1, last_name = $2, updated_at = NOW() WHERE id = $3', [firstName, lastName, userId]);
+            } else {
+              userId = 'usr_' + Math.random().toString(36).substring(2, 10);
+              await client.query('INSERT INTO users (id, email, first_name, last_name, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())', [userId, email, firstName, lastName]);
+              await client.query('INSERT INTO staff_members (id, role, created_at, updated_at) VALUES ($1, $2, NOW(), NOW()) ON CONFLICT (id) DO UPDATE SET role = $2', [userId, role]);
+            }
+            activeUserId = userId;
+            return sendJson(res, 200, { success: true, userId, user: { id: userId, email, firstName, lastName } });
+          }
+
+          if (reqPath === '/api/auth/supabase-login' && req.method === 'POST') {
+            const body = await parseBody(req);
+            const email = (body.email || '').trim().toLowerCase();
+            const rawId = body.id || ('usr_sb_' + Math.random().toString(36).substring(2, 8));
+            const firstName = body.firstName || email.split('@')[0] || 'Utilizador';
+            const lastName = body.lastName || '';
+            const profileImageUrl = body.profileImageUrl || null;
+            const role = body.role || 'ATENDIMENTO';
+
+            if (!email) {
+              return sendJson(res, 400, { error: 'Email obrigatório do provedor Supabase.' });
+            }
+
+            const existing = await client.query('SELECT * FROM users WHERE email = $1 OR id = $2', [email, rawId]);
+            let userId = rawId;
+            if (existing.rows.length > 0) {
+              userId = existing.rows[0].id;
+              await client.query(
+                'UPDATE users SET profile_image_url = COALESCE($1, profile_image_url), updated_at = NOW() WHERE id = $2',
+                [profileImageUrl, userId]
+              );
+            } else {
+              await client.query(
+                'INSERT INTO users (id, email, first_name, last_name, profile_image_url, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())',
+                [userId, email, firstName, lastName, profileImageUrl]
+              );
+              await client.query(
+                'INSERT INTO staff_members (id, role, created_at, updated_at) VALUES ($1, $2, NOW(), NOW()) ON CONFLICT (id) DO NOTHING',
+                [userId, role]
+              );
+            }
+            activeUserId = userId;
+            const finalUser = await client.query('SELECT u.*, s.role FROM users u LEFT JOIN staff_members s ON u.id = s.id WHERE u.id = $1', [userId]);
+            return sendJson(res, 200, { success: true, user: finalUser.rows[0] });
+          }
+
+          // Admin reset endpoint to start from zero
           if (reqPath === '/api/admin/reset' && req.method === 'POST') {
             await client.query('DELETE FROM timeline_events');
             await client.query('DELETE FROM order_deliveries');

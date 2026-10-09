@@ -7,6 +7,8 @@ import { useAuth } from '@workspace/replit-auth-web';
 import { UserSwitcher, STAFF_PROFILES } from '@/components/UserSwitcher';
 import { JobTicketModal } from '@/components/JobTicketModal';
 import { PrintCalculatorModal } from '@/components/PrintCalculatorModal';
+import { AdminConsolePage } from '@/pages/AdminConsolePage';
+import { supabase } from '@/lib/supabase';
 import { MessageCircle, Calculator } from 'lucide-react';
 import {
   useGetDashboard, useListActivity, useListClients, useCreateClient, useListTickets, useCreateTicket,
@@ -21,7 +23,7 @@ import type { Client } from '@workspace/api-client-react';
 import {
   Activity, ArrowLeft, ArrowRight, Box, BriefcaseBusiness, Check, CheckCircle2, Clock3, FileCheck2,
   FileImage, FilePlus2, FileText, Gauge, LayoutDashboard, LogOut, Plus, Printer, Search, ShieldCheck,
-  SlidersHorizontal, Truck, UserRound, Users,
+  SlidersHorizontal, Truck, UserRound, Users, Server, Key, UserPlus,
 } from 'lucide-react';
 import { Link, Route, Switch, useLocation, useParams } from 'wouter';
 
@@ -57,6 +59,65 @@ function App() {
 function ProtectedShell() {
   const auth = useAuth();
   const [path] = useLocation();
+  const [showQuickRegister, setShowQuickRegister] = useState(false);
+  const [quickReg, setQuickReg] = useState({ firstName: '', lastName: '', email: '', role: 'ATENDIMENTO' });
+  const [regLoading, setRegLoading] = useState(false);
+
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        try {
+          const u = session.user;
+          const fullName = u.user_metadata?.full_name || u.user_metadata?.name || '';
+          const [firstName, ...rest] = fullName.split(' ');
+          const lastName = rest.join(' ');
+          const res = await fetch('/api/auth/supabase-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: u.id,
+              email: u.email,
+              firstName: firstName || u.email?.split('@')[0],
+              lastName: lastName || '',
+              profileImageUrl: u.user_metadata?.avatar_url || null,
+            }),
+          });
+          if (res.ok) {
+            auth.refetchUser();
+          }
+        } catch (err) {
+          console.error('Failed to sync Supabase user:', err);
+        }
+      }
+    });
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
+  }, []);
+
+  const handleQuickRegister = async (e: FormEvent) => {
+    e.preventDefault();
+    setRegLoading(true);
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(quickReg),
+      });
+      if (res.ok) {
+        setShowQuickRegister(false);
+        auth.login((await res.json()).userId);
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Erro ao cadastrar');
+      }
+    } catch (e: any) {
+      alert(e.message || 'Erro');
+    } finally {
+      setRegLoading(false);
+    }
+  };
   if (auth.isLoading) return <div className="min-h-[100dvh] p-8"><div className="skeleton" style={{width:190,height:28}}/><div className="skeleton" style={{width:'70%',height:140,marginTop:40}}/></div>;
   if (!auth.isAuthenticated) return (
     <div className="min-h-[100dvh] grid place-items-center p-6" style={{background:'hsl(var(--sidebar))',color:'#f3eee4'}}>
@@ -65,15 +126,49 @@ function ProtectedShell() {
         <div className="eyebrow">GRÁFICA FLOW · OPERAÇÕES</div>
         <h1 className="font-display text-3xl mt-2 mb-1">Selecione o seu perfil de acesso</h1>
         <p className="text-sm text-muted-foreground mb-6">Entre com uma das funções operacionais para acompanhar ou intervir no fluxo:</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6">
+        {/* Entrada com Google */}
+        <div className="mb-5 text-left">
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const { error } = await supabase.auth.signInWithOAuth({
+                  provider: 'google',
+                  options: { redirectTo: window.location.origin },
+                });
+                if (error) {
+                  alert("Supabase Auth: " + error.message + "\n\nPara ativar o login via Google, certifique-se de ativar o Google Provider no painel do Supabase com o Client ID do Google Cloud.");
+                }
+              } catch (err: any) {
+                alert(err.message);
+              }
+            }}
+            className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-border/80 bg-background hover:bg-accent/40 font-semibold text-sm transition-all shadow-xs cursor-pointer text-foreground group"
+          >
+            <svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+            </svg>
+            Entrar com a Conta Google (OAuth)
+          </button>
+          
+          <div className="relative flex items-center justify-center my-4 text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+            <div className="border-t border-border/80 w-full absolute" />
+            <span className="bg-card px-3 z-10">ou selecione o perfil de turno na gráfica</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-5">
           {STAFF_PROFILES.map((p) => (
             <button
               key={p.id}
               type="button"
               onClick={() => auth.login(p.id)}
-              className="flex items-start gap-3 p-3.5 rounded-xl border border-border/80 hover:border-primary/50 hover:bg-accent/40 transition-all cursor-pointer group text-left"
+              className="flex items-start gap-3 p-3 rounded-xl border border-border/80 hover:border-primary/50 hover:bg-accent/40 transition-all cursor-pointer group text-left"
             >
-              <span className={`w-9 h-9 rounded-full ${p.avatarBg} grid place-items-center text-sm shrink-0 shadow-xs mt-0.5 group-hover:scale-105 transition-transform`}>
+              <span className={`w-8 h-8 rounded-full ${p.avatarBg} grid place-items-center text-sm shrink-0 shadow-xs mt-0.5 group-hover:scale-105 transition-transform`}>
                 {p.icon}
               </span>
               <div className="flex-1 min-w-0">
@@ -81,23 +176,72 @@ function ProtectedShell() {
                   <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">{p.name}</span>
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${p.badgeColor}`}>{p.roleLabel}</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug line-clamp-2">{p.description}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug line-clamp-1">{p.description}</p>
               </div>
             </button>
           ))}
         </div>
-        <button className="btn btn-primary w-full" onClick={() => auth.login('usr_admin')} data-testid="button-login">
-          Entrar como Gestor de Produção (Administrador) <ArrowRight size={15}/>
-        </button>
+
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button className="btn btn-primary flex-1 justify-center" onClick={() => auth.login('usr_admin')} data-testid="button-login">
+            Entrar como Gestor (Master VPS) <ArrowRight size={15}/>
+          </button>
+          <button type="button" className="btn btn-secondary justify-center text-xs flex items-center gap-1.5 cursor-pointer" onClick={() => setShowQuickRegister(true)}>
+            <UserPlus size={14}/> Cadastrar Colaborador
+          </button>
+        </div>
+
+        {showQuickRegister && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="panel p-6 max-w-sm w-full bg-card shadow-2xl border-border text-left">
+              <div className="flex items-center justify-between mb-4 border-b border-border/80 pb-2">
+                <h3 className="font-bold text-sm">Novo Registo de Colaborador</h3>
+                <button type="button" onClick={() => setShowQuickRegister(false)} className="text-muted-foreground hover:text-foreground text-xs cursor-pointer">✕</button>
+              </div>
+              <form onSubmit={handleQuickRegister} className="space-y-3 text-xs">
+                <div>
+                  <label className="text-[11px] font-semibold text-foreground block mb-1">Nome *</label>
+                  <input required className="control" placeholder="Primeiro nome" value={quickReg.firstName} onChange={e => setQuickReg({ ...quickReg, firstName: e.target.value })}/>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-foreground block mb-1">Apelido / Sobrenome</label>
+                  <input className="control" placeholder="Sobrenome" value={quickReg.lastName} onChange={e => setQuickReg({ ...quickReg, lastName: e.target.value })}/>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-foreground block mb-1">Email *</label>
+                  <input type="email" required className="control" placeholder="colaborador@graficaflow.ao" value={quickReg.email} onChange={e => setQuickReg({ ...quickReg, email: e.target.value })}/>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-foreground block mb-1">Função</label>
+                  <select className="control" value={quickReg.role} onChange={e => setQuickReg({ ...quickReg, role: e.target.value })}>
+                    <option value="ATENDIMENTO">Atendimento & Comercial</option>
+                    <option value="DESIGNER">Pré-Impressão / Designer</option>
+                    <option value="PRODUCAO">Operador de Máquinas</option>
+                    <option value="QUALIDADE">Controlo de Qualidade</option>
+                    <option value="EXPEDICAO">Expedição & Logística</option>
+                    <option value="GESTAO">Gestão de Produção</option>
+                  </select>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setShowQuickRegister(false)} className="btn btn-sm cursor-pointer">Cancelar</button>
+                  <button type="submit" disabled={regLoading} className="btn btn-sm btn-primary cursor-pointer">{regLoading ? 'A registar...' : 'Cadastrar e Entrar'}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
+  const currentRole = useCurrentRole();
+  const isGestor = currentRole === 'ADMIN' || currentRole === 'GESTAO' || auth.user?.id === 'usr_admin';
   const nav = [
     {href:'/dashboard',label:'Visão geral',icon:LayoutDashboard},
     {href:'/pedidos',label:'Pedidos',icon:FileText},
     {href:'/ordens',label:'Ordens de produção',icon:Printer},
     {href:'/clientes',label:'Clientes',icon:BriefcaseBusiness},
     {href:'/equipa',label:'Equipa',icon:Users},
+    ...(isGestor ? [{href:'/admin',label:'Painel VPS & Servidor',icon:Server}] : []),
   ];
   const active = (href:string) => path === href || (href !== '/dashboard' && path.startsWith(href + '/'));
   return <div className="shell">
@@ -106,7 +250,7 @@ function ProtectedShell() {
       <div className="sidebar-footer mt-auto px-3 text-[11px] text-slate-400"><div className="border-t border-slate-600 pt-4 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-400"/><span>Operação sincronizada</span></div></div>
     </aside>
     <div className="main"><header className="topbar"><div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="w-2 h-2 rounded-full" style={{background:'hsl(var(--primary))'}}/> Turno de produção <span className="mx-1">/</span><span className="text-foreground">{nav.find(n=>active(n.href))?.label || 'Pedido'}</span></div><div className="flex items-center gap-4"><span className="text-xs text-muted-foreground hidden md:block">{new Intl.DateTimeFormat('pt-AO',{timeZone:'Africa/Luanda',weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date())} · Luanda</span><UserSwitcher/></div></header>
-      <Switch><Route path="/" component={DashboardPage}/><Route path="/dashboard" component={DashboardPage}/><Route path="/pedidos/novo" component={NewTicketPage}/><Route path="/pedidos/:ticketId" component={TicketPage}/><Route path="/pedidos" component={TicketsPage}/><Route path="/ordens/:orderId" component={OrderPage}/><Route path="/ordens" component={OrdersPage}/><Route path="/clientes" component={ClientsPage}/><Route path="/equipa" component={TeamPage}/><Route component={NotFound}/></Switch>
+      <Switch><Route path="/" component={DashboardPage}/><Route path="/dashboard" component={DashboardPage}/><Route path="/pedidos/novo" component={NewTicketPage}/><Route path="/pedidos/:ticketId" component={TicketPage}/><Route path="/pedidos" component={TicketsPage}/><Route path="/ordens/:orderId" component={OrderPage}/><Route path="/ordens" component={OrdersPage}/><Route path="/clientes" component={ClientsPage}/><Route path="/equipa" component={TeamPage}/><Route path="/admin" component={AdminConsolePage}/><Route component={NotFound}/></Switch>
     </div>
     <nav className="mobile-nav">{nav.map(n=><Link key={n.href} href={n.href} className={active(n.href)?'active':''}><n.icon/><span>{n.label.split(' ')[0]}</span></Link>)}</nav>
   </div>;
@@ -121,7 +265,8 @@ function Empty({title,detail,action}:{title:string,detail:string,action?:React.R
 function StatusBadge({status}:{status:string}) { return <span className={`badge ${badgeTone(status)}`}>{human(status)}</span> }
 function useCurrentRole() {
  const auth=useAuth();
-  const team=useListTeamMembers({query:{queryKey:getListTeamMembersQueryKey(),enabled:auth.isAuthenticated}});
+ const team=useListTeamMembers({query:{queryKey:getListTeamMembersQueryKey(),enabled:auth.isAuthenticated}});
+ if (auth.user?.id === 'usr_admin') return 'ADMIN';
  return team.data?.find(member=>member.id===auth.user?.id)?.role ?? null;
 }
 
