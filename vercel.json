@@ -1,0 +1,15 @@
+{
+  "buildCommand": "pnpm --filter @workspace/grafica-flow run build",
+  "outputDirectory": "artifacts/grafica-flow/dist/public",
+  "installCommand": "pnpm install",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

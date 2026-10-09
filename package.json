@@ -3,14 +3,17 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
-    "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; true'",
+    "build": "pnpm --filter @workspace/grafica-flow run build",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "build:all": "pnpm run typecheck && pnpm -r --if-present run build",
+    "postbuild": "node -e \"const fs = require('fs'); if (fs.existsSync('artifacts/grafica-flow/dist/public')) { fs.mkdirSync('dist', { recursive: true }); fs.cpSync('artifacts/grafica-flow/dist/public', 'dist/public', { recursive: true }); console.log('Mirrored build to dist/public'); }\""
   },
   "private": true,
   "dependencies": {
-    "@replit/connectors-sdk": "^0.4.3"
+    "@replit/connectors-sdk": "^0.4.3",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
@@ -18,6 +21,8 @@
     "@tailwindcss/oxide-win32-x64-msvc": "^4.3.3",
     "lightningcss-win32-x64-msvc": "^1.33.0",
     "prettier": "^3.9.6",
-    "typescript": "~5.9.3"
-  }
+    "typescript": "~5.9.3",
+    "@types/pg": "^8.23.1"
+  },
+  "type": "module"
 }
