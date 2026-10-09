@@ -1,7 +1,6 @@
 {
-  "buildCommand": "pnpm --filter @workspace/grafica-flow run build",
-  "outputDirectory": "artifacts/grafica-flow/dist",
-  "installCommand": "pnpm install",
+  "buildCommand": "vite build --config vite.config.ts",
+  "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/api/(.*)",

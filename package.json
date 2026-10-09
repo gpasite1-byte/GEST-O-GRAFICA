@@ -7,8 +7,7 @@
     "build": "pnpm --filter @workspace/grafica-flow run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
-    "build:all": "pnpm run typecheck && pnpm -r --if-present run build",
-    "postbuild": "node -e \"const fs = require('fs'); if (fs.existsSync('artifacts/grafica-flow/dist/public')) { fs.mkdirSync('dist', { recursive: true }); fs.cpSync('artifacts/grafica-flow/dist/public', 'dist/public', { recursive: true }); console.log('Mirrored build to dist/public'); }\""
+    "build:all": "pnpm run typecheck && pnpm -r --if-present run build"
   },
   "private": true,
   "dependencies": {
