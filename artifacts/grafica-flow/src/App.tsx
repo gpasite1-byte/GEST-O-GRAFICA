@@ -56,9 +56,22 @@ function App() {
   </Switch></ErrorBoundary><Toaster/></TooltipProvider></QueryClientProvider>;
 }
 
+function useCurrentRole(user?: any) {
+  const team = useListTeamMembers({
+    query: {
+      queryKey: getListTeamMembersQueryKey(),
+      enabled: !!user,
+    },
+  });
+  if (user?.id === 'usr_admin') return 'ADMIN';
+  return team.data?.find((member) => member.id === user?.id)?.role ?? null;
+}
+
 function ProtectedShell() {
   const auth = useAuth();
   const [path] = useLocation();
+  const currentRole = useCurrentRole(auth.user);
+  const isGestor = currentRole === 'ADMIN' || currentRole === 'GESTAO' || auth.user?.id === 'usr_admin';
   const [showQuickRegister, setShowQuickRegister] = useState(false);
   const [quickReg, setQuickReg] = useState({ firstName: '', lastName: '', email: '', role: 'ATENDIMENTO' });
   const [regLoading, setRegLoading] = useState(false);
@@ -233,8 +246,7 @@ function ProtectedShell() {
       </div>
     </div>
   );
-  const currentRole = useCurrentRole();
-  const isGestor = currentRole === 'ADMIN' || currentRole === 'GESTAO' || auth.user?.id === 'usr_admin';
+
   const nav = [
     {href:'/dashboard',label:'Visão geral',icon:LayoutDashboard},
     {href:'/pedidos',label:'Pedidos',icon:FileText},
@@ -263,12 +275,6 @@ function LoadRows({count=5}:{count?:number}) { return <div className="p-5 space-
 function ErrorBox({retry}:{retry:()=>void}) { return <div className="panel p-8 text-center"><div className="text-sm font-semibold mb-1">Não foi possível carregar estes dados.</div><p className="text-xs text-muted-foreground">Verifique a ligação e tente novamente.</p><button className="btn btn-sm mt-3" onClick={retry}>Tentar novamente</button></div> }
 function Empty({title,detail,action}:{title:string,detail:string,action?:React.ReactNode}) { return <div className="p-10 text-center"><div className="w-11 h-11 rounded-full bg-secondary text-secondary-foreground grid place-items-center mx-auto mb-3"><Box size={19}/></div><div className="font-display font-bold">{title}</div><p className="text-xs text-muted-foreground max-w-xs mx-auto">{detail}</p>{action}</div> }
 function StatusBadge({status}:{status:string}) { return <span className={`badge ${badgeTone(status)}`}>{human(status)}</span> }
-function useCurrentRole() {
- const auth=useAuth();
- const team=useListTeamMembers({query:{queryKey:getListTeamMembersQueryKey(),enabled:auth.isAuthenticated}});
- if (auth.user?.id === 'usr_admin') return 'ADMIN';
- return team.data?.find(member=>member.id===auth.user?.id)?.role ?? null;
-}
 
 function DashboardPage() {
  const role=useCurrentRole(); const canCreate=['ADMIN','GESTAO','ATENDIMENTO'].includes(role||'');
